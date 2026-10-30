@@ -79,9 +79,9 @@
 ## 12. ONNX Runtime は読み込めた時だけ呼ぶ
 
 - ONNX Runtime(AI の推論エンジン)は、プラグインに同梱したものだけを、`OnnxRuntime::initialise` が場所を指定して読み込む(macOS は `Frameworks/libonnxruntime.dylib`、Windows はプラグインと同じフォルダーの `onnxruntime.dll`)。`ORT_API_MANUAL_INIT` は全プラットフォームで定義してある。Windows の System32 にある古い `onnxruntime.dll` には決して切り替えない。プラグインは `onnxruntime.dll` から読み込み指定(import)を1つも持たない作りで、Windows のリンク時に出る LNK4199(遅延読み込みの対象が無い)はそのため。それでも遅延読み込みが起きた時に備えて、`OnnxRuntimeLoader.cpp` のフックが補助処理に DLL を探させない(探させると System32 の古いものを読む)
-- 読み込めない時(Windows ではたいてい Visual C++ 再頒布可能パッケージが入っていない)は、API のポインターが空のままになる。この状態で `Ort::` を1つでも呼ぶと落ちる。`Ort::Env` を作る所・`Ort::GetAvailableProviders` など ONNX Runtime を呼ぶ所は、先に `OnnxRuntime::isAvailable()` を確かめる(今は FCPE・RMVPE・GAME・声の合成・GPU の一覧・設定画面の6か所)。解析の入口 `EditorController::analyzeAudio` と、最初に開いたエディターは `OnnxRuntime::showUnavailableMessageOnce()` で直し方を見せる(1プロセスに1回だけ。ARA のホストはクリップごとに解析するので、毎回出すと何枚も重なる)。理由は記録(Windows はデバッガー出力)に出る
+- 読み込めない時(Windows ではたいてい Visual C++ 再頒布可能パッケージが入っていない)は、API のポインターが空のままになる。この状態で `Ort::` を1つでも呼ぶと落ちる。`Ort::Env` を作る所・`Ort::GetAvailableProviders` など ONNX Runtime を呼ぶ所は、先に `OnnxRuntime::isAvailable()` を確かめる(今は FCPE・RMVPE・GAME・声の合成・AI リシンセシスを選べるかの判定 `getAiResynthesisSupport`・設定画面の6か所)。解析の入口 `EditorController::analyzeAudio` と、最初に開いたエディターは `OnnxRuntime::showUnavailableMessageOnce()` で直し方を見せる(1プロセスに1回だけ。ARA のホストはクリップごとに解析するので、毎回出すと何枚も重なる)。理由は記録(Windows はデバッガー出力)に出る
 - 新しく ONNX Runtime を呼ぶ所を足したら、同じく先に確かめ、`tests/OnnxRuntimeAvailabilityTests.cpp` にその入口を足す
-- 破ると: `OnnxRuntimeAvailabilityTests` が落ちる(API を空にした状態で各入口を通すので、確かめ忘れた所でテストが落ちる。ただし GPU の一覧の DirectML の判定は Windows の DirectML 版でしか通らず、macOS のテストでは通らない)。Windows では CI の `tools/windows/check-vst3.ps1` の、ランタイムの無いコンテナーでの検査が落ちる
+- 破ると: `OnnxRuntimeAvailabilityTests` が落ちる(API を空にした状態で各入口を通すので、確かめ忘れた所でテストが落ちる。ただし AI リシンセシスを選べるかの判定は Windows でしか ONNX Runtime を呼ばず、macOS のテストでは通らない。Windows の CI はこのテストを作らないので、この判定の確かめ忘れは自動では見つからない)。Windows では CI の `tools/windows/check-vst3.ps1` の、ランタイムの無いコンテナーでの検査が落ちる
 
 ## 13. インストーラーは zip の中身から作る
 
@@ -102,3 +102,9 @@
 - GitHub Actions の `uses:` は 40 桁のコミット ID で指定し、行末のコメントに版名を残す。タグ(`@v7`)やブランチ名では指定しない。新しい版に上げる時は `gh api repos/<owner>/<repo>/git/ref/tags/<版>` で ID を取る
 - サブモジュール(JUCE・ARA_SDK・r8brain)はコミット ID で固定されている。進める時は `git submodule status` の変化をコミットの説明に書く
 - 破ると: ダウンロードの中身が表と違えば、構成(configure)が「hash mismatch」で止まる。表の更新忘れも同じ所で止まる。アクションのタグ指定は自動テストが無く、`grep -rn 'uses:' .github/workflows | grep -v '@[0-9a-f]\{40\}'` で見つける(ローカルの `./.github/workflows/…` 参照は対象外)
+
+## 15. AI リシンセシスを選べるかは1か所で決め、選べない選択肢を選択中のままにしない
+
+- 守ること: AI リシンセシス(声の合成モデル)を選べるかは `getAiResynthesisSupport()` だけで決める。置き場所は既定のエンジンを決める `defaultSynthesisEngineType()` と同じ `Source/Audio/SynthesisEngineType.cpp`。答えは「使えない / CPU だけ / GPU など」の3つ。Windows の配布版は CPU 版(DirectML なし)なので「CPU だけ」になり、AI は選べる(説明文で遅いことを伝える)。配布の形を変える時(DirectML 版・Linux 版など)は、既定のエンジンが AI になる環境でこの関数が「使えない」を返さないことを確かめる
+- 必ず通す入口: 答えを右パネルに渡すのは `ParameterPanel::setAiResynthesisSupport` だけ(`MainComponent` の構築時、エンジン変更の保存処理をつないだ後)。右パネルは「使えない」時に AI を選択中のままにせず、クラシックへ寄せて `onSynthesisEngineChanged` で知らせ、保存させる(`setSynthesisEngineInternal` の中で行うので、後から AI を渡されても同じ)。ボタンを押せなくするだけの書き方に戻さない。既定が AI のままボタンが押せず、クラシックを一度選ぶと戻れなくなる(2026-10-30 の Windows 報告)
+- 破ると: `AiResynthesisChoiceTests` が落ちる(CPU だけの時にクラシックから AI へ戻せる / 使えない時は寄せて知らせる / 説明文が状態に合う)。Windows の配布版で AI を選べることは、CI の Windows ジョブが走らせる `ModelInferenceTests` の段階5が確かめる(Windows で「使えない」なら落ちる)。DirectML 版で「GPU など」になるかは自動テストが無い

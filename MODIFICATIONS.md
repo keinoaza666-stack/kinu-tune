@@ -119,6 +119,14 @@ The full history of the changes is in the git log of this repository.
   modifications kept the default engine, so Classic never rendered in the host.
 - A status line under the engine radios names the engine of the running or
   last render ("Last render: Classic"), since release builds write no log.
+- The Windows release is built without DirectML, where upstream disables the AI
+  Resynthesis radio; yet machines with a discrete GPU still default to AI, so
+  picking Classic once could not be undone. getAiResynthesisSupport
+  (Source/Audio/SynthesisEngineType.cpp, next to the default engine) now
+  reports CPU-only support there: the radio stays clickable and its tooltip
+  says renders take longer. Where AI Resynthesis cannot run at all (ONNX
+  Runtime not loaded), an AI choice is moved to Classic and saved instead of
+  staying selected but disabled. GpuDeviceList::hasGpuInference is removed.
 
 ### Defaults
 - Pitch Snap Mode Absolute, smart controls "Show All", scale shown in the piano
@@ -145,7 +153,8 @@ The full history of the changes is in the git log of this repository.
 ### Tests and checks
 - New unit tests: HarmonyIntervalTests, HarmonyApplyTests,
   VariAudioControlTests, VariAudioInspectorTests, AuditionOutputTests,
-  AuditionHandoffTests, SynthesisEngineShareTests, and RenderSnapshots (renders
+  AuditionHandoffTests, SynthesisEngineShareTests, AiResynthesisChoiceTests,
+  and RenderSnapshots (renders
   the piano roll and inspector to PNG files).
 - tests/SourceGuard.cmake: fails when code outside the allowed files writes a
   note's pitch directly, calls the engine's audition loop directly, or creates
@@ -159,8 +168,9 @@ The full history of the changes is in the git log of this repository.
   if one is left.
 - tests/ModelInferenceTests.cpp loads the shipped models and checks analysis
   and synthesis with numbers (FCPE reports a tone's pitch, GAME finds the note,
-  the vocoder and PSOLA shift it by a minor third). It is the one test the CI
-  Windows job also runs, so Windows is known to analyse and synthesise.
+  the vocoder and PSOLA shift it by a minor third, and AI Resynthesis can be
+  chosen on macOS and Windows). It is the one test the CI Windows job also runs, so
+  Windows is known to analyse and synthesise.
 - cmake/DependencyHashes.cmake records the SHA-256 of every archive CMake
   downloads (ONNX Runtime, the DirectML NuGet packages, the GAME models); a
   download that does not match stops the configure step. The GitHub Actions

@@ -13,9 +13,9 @@
 #include "../Source/Audio/FCPEPitchDetector.h"
 #include "../Source/Audio/GAMEDetector.h"
 #include "../Source/Audio/RMVPEPitchDetector.h"
+#include "../Source/Audio/SynthesisEngineType.h"
 #include "../Source/Audio/Vocoder.h"
 #include "../Source/Models/Project.h"
-#include "../Source/UI/GpuDeviceList.h"
 #include "../Source/UI/SettingsComponent.h"
 #include "../Source/Utils/Localization.h"
 #include "../Source/Utils/OnnxRuntime.h"
@@ -87,7 +87,13 @@ int main()
 
     // The device lists ask ONNX Runtime for its providers.
     CHECK(SettingsComponent::getAvailableDevices().contains("CPU"));
-    GpuDeviceList::hasGpuInference();
+    // Whether AI Resynthesis can be chosen asks ONNX Runtime on Windows; with
+    // no runtime the option is not offered at all.
+#if JUCE_WINDOWS
+    CHECK(getAiResynthesisSupport() == AiResynthesisSupport::Unavailable);
+#else
+    getAiResynthesisSupport();
+#endif
     {
         Vocoder vocoder;
         CHECK(!Vocoder::isOnnxRuntimeAvailable());

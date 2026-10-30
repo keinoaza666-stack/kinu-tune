@@ -853,7 +853,10 @@ MainComponent::MainComponent(bool enableAudioDevice)
     // the previous engine would stay until the user happened to edit again.
     rerenderEditedNotes();
   };
-  parameterPanel.setAiResynthesisAvailable(GpuDeviceList::hasGpuInference());
+  // After the callback above is wired: where AI Resynthesis cannot run, this
+  // moves a saved AI choice to Classic, and that has to be saved and handed to
+  // the controller.
+  parameterPanel.setAiResynthesisSupport(getAiResynthesisSupport());
   refreshRenderDeviceOptions();
   parameterPanel.onRenderDeviceChanged = [this](int deviceId)
   {

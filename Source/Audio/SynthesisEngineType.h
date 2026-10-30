@@ -40,6 +40,32 @@ SynthesisEngineType defaultSynthesisEngineType();
 SynthesisEngineType synthesisEngineTypeForSavedPreference(SynthesisEngineType type);
 
 /**
+ * Whether AI Resynthesis (the neural vocoder) can be chosen on this computer.
+ */
+enum class AiResynthesisSupport
+{
+    Unavailable,  // cannot run here: shown disabled, and never left selected
+    CpuOnly,      // runs on the CPU only: selectable, but every render is slow
+    Accelerated   // runs off the CPU (Core ML, DirectML)
+};
+
+/**
+ * - macOS: Accelerated (Core ML).
+ * - Windows: Unavailable when the bundled ONNX Runtime cannot be loaded;
+ *   Accelerated when a DirectML build finds DirectML and a hardware adapter;
+ *   CpuOnly otherwise. The release build is CPU-only (no DirectML), and the
+ *   vocoder still runs there, so the user may pick it.
+ * - Linux, and any build without ONNX Runtime: Unavailable.
+ *
+ * Kept next to defaultSynthesisEngineType() so the two answers are decided in
+ * one place. Everywhere the default can be AI, this says AI can be chosen,
+ * except when ONNX Runtime fails to load; ParameterPanel::setAiResynthesisSupport
+ * then moves an AI choice to Classic. That setter is the only place this answer
+ * reaches the engine choice.
+ */
+AiResynthesisSupport getAiResynthesisSupport();
+
+/**
  * One engine setting shared by every EditorController that renders for the
  * same plug-in instance.
  *

@@ -1,4 +1,9 @@
 #include "SynthesisEngineType.h"
+#include "../Utils/OnnxRuntime.h"
+
+#if defined(_WIN32) && defined(USE_DIRECTML) && defined(HAVE_ONNXRUNTIME)
+#include <onnxruntime_cxx_api.h>
+#endif
 
 #ifdef _WIN32
 #include <d3d12.h>
@@ -62,6 +67,7 @@ struct WindowsGpuCapabilities
 {
   bool vocoderCapable = false;
   bool singleIntelAdapter = false;
+  bool hasHardwareAdapter = false;
 };
 
 WindowsGpuCapabilities detectWindowsGpuCapabilities()
@@ -114,7 +120,8 @@ WindowsGpuCapabilities detectWindowsGpuCapabilities()
 
   return {hardwareAdapters > 1 ||
               (hardwareAdapters == 1 && !loneAdapterNeedsClassic),
-          hardwareAdapters == 1 && loneAdapterIsIntel};
+          hardwareAdapters == 1 && loneAdapterIsIntel,
+          hardwareAdapters > 0};
 }
 
 const WindowsGpuCapabilities &getWindowsGpuCapabilities()
@@ -145,4 +152,32 @@ SynthesisEngineType synthesisEngineTypeForSavedPreference(SynthesisEngineType ty
     return SynthesisEngineType::Psola;
 #endif
   return type;
+}
+
+AiResynthesisSupport getAiResynthesisSupport()
+{
+#if JUCE_MAC
+  return AiResynthesisSupport::Accelerated;
+#elif defined(_WIN32) && defined(HAVE_ONNXRUNTIME)
+  if (!OnnxRuntime::isAvailable())
+    return AiResynthesisSupport::Unavailable;
+
+#if defined(USE_DIRECTML)
+  // A DirectML runtime can be installed on a machine with no hardware adapter
+  // to run it on; the vocoder then falls back to the CPU.
+  try
+  {
+    for (const auto &provider : Ort::GetAvailableProviders())
+      if (provider == "DmlExecutionProvider" &&
+          getWindowsGpuCapabilities().hasHardwareAdapter)
+        return AiResynthesisSupport::Accelerated;
+  }
+  catch (const std::exception &)
+  {
+  }
+#endif
+  return AiResynthesisSupport::CpuOnly;
+#else
+  return AiResynthesisSupport::Unavailable;
+#endif
 }

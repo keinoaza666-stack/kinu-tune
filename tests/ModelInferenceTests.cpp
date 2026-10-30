@@ -15,6 +15,8 @@
 //                    with FCPE), both through infer() and inferWithPitchShift()
 //   4. PSOLA         the Classic engine shifting the tone by the same interval
 //                    must also sound at 261.6 Hz
+//   5. the panel     AI Resynthesis must be selectable on this platform
+//                    (getAiResynthesisSupport is not Unavailable)
 //
 // argv[1] is the models folder (Resources/models). On macOS the vocoder uses
 // the Core ML model when it sits next to pc_nsf_hifigan.onnx and the ONNX
@@ -23,6 +25,7 @@
 #include "../Source/Audio/FCPEPitchDetector.h"
 #include "../Source/Audio/GAMEDetector.h"
 #include "../Source/Audio/Synthesis/PsolaSynthesizer.h"
+#include "../Source/Audio/SynthesisEngineType.h"
 #include "../Source/Audio/Vocoder.h"
 #include "../Source/Utils/Constants.h"
 #include "../Source/Utils/MelSpectrogram.h"
@@ -208,6 +211,20 @@ int main(int argc, char **argv)
     CHECK(psola.size() == static_cast<size_t>(request.numOutputFrames * HOP_SIZE));
     CHECK(peak(psola) > 0.01f);
     CHECK(withinPercent(psolaHz, targetHz, kTolerancePercent));
+
+    // 5. The vocoder that just ran can also be chosen on the right panel. The
+    //    Windows release is CPU-only, and its AI option used to be disabled
+    //    while still the default, so Classic, once picked, could not be undone.
+    const auto support = getAiResynthesisSupport();
+    std::printf("AI Resynthesis support: %s\n",
+                support == AiResynthesisSupport::Accelerated ? "accelerated"
+                : support == AiResynthesisSupport::CpuOnly   ? "CPU only"
+                                                             : "unavailable");
+#if JUCE_MAC
+    CHECK(support == AiResynthesisSupport::Accelerated);
+#elif JUCE_WINDOWS
+    CHECK(support != AiResynthesisSupport::Unavailable);
+#endif
 
     std::printf("ModelInferenceTests: analysis and synthesis work on this platform\n");
     return 0;

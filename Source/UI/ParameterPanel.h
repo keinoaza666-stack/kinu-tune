@@ -39,8 +39,10 @@ public:
     void setSelectedNote(Note* note);
     void setSynthesisEngine(SynthesisEngineType type);
     SynthesisEngineType getSynthesisEngine() const { return synthesisEngine; }
-    // Disables the AI Resynthesis radio on CPU-only machines.
-    void setAiResynthesisAvailable(bool available);
+    // Whether the AI Resynthesis radio can be clicked (getAiResynthesisSupport).
+    // A disabled option is never left selected: an AI choice is moved to
+    // Classic and reported through onSynthesisEngineChanged, so it is saved.
+    void setAiResynthesisSupport(AiResynthesisSupport support);
 
     // ===== Rendering card: status line under the engine radios =====
     // Names the engine the running or last render was started with. The
@@ -102,6 +104,7 @@ private:
     void setPitchReferenceInternal(int hz, bool notify);
     void refreshModeToggles();
     void refreshSynthesisToggles();
+    void refreshVocoderToggleAvailability();
     void refreshRenderDeviceRow();
     void showRenderDeviceMenu();
     void setSynthesisEngineInternal(SynthesisEngineType type, bool notify);
@@ -184,7 +187,7 @@ private:
     bool timelineSnapCycle = false;
     double uiBrightnessPercent = 100.0;
     SynthesisEngineType synthesisEngine = defaultSynthesisEngineType();
-    bool aiResynthesisAvailable = true;
+    AiResynthesisSupport aiSupport = AiResynthesisSupport::Accelerated;
 
     juce::StringArray renderDeviceNames;
     int renderDeviceIndex = 0;

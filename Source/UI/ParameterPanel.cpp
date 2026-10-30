@@ -283,8 +283,7 @@ ParameterPanel::ParameterPanel()
 
     // The button text stays plain language; the algorithm names live here, so
     // they are discoverable without putting "PC-NSF-HiFiGAN" in a 55px label.
-    vocoderEngineToggle.setTooltip(TR(aiResynthesisAvailable ? "tooltip.engine_vocoder"
-                                                             : "tooltip.engine_vocoder_unavailable"));
+    refreshVocoderToggleAvailability();
     psolaEngineToggle.setTooltip(TR("tooltip.engine_psola"));
 
     // Device row: added hidden. It appears only once the host tells us the
@@ -825,8 +824,7 @@ void ParameterPanel::refreshLocalisedText()
 
     vocoderEngineToggle.setButtonText(TR("param.engine_vocoder"));
     psolaEngineToggle.setButtonText(TR("param.engine_psola"));
-    vocoderEngineToggle.setTooltip(TR(aiResynthesisAvailable ? "tooltip.engine_vocoder"
-                                                             : "tooltip.engine_vocoder_unavailable"));
+    refreshVocoderToggleAvailability();
     psolaEngineToggle.setTooltip(TR("tooltip.engine_psola"));
 
     renderDeviceLabel.setText(TR("param.device"), juce::dontSendNotification);
@@ -1040,6 +1038,16 @@ void ParameterPanel::setSynthesisEngine(SynthesisEngineType type)
 
 void ParameterPanel::setSynthesisEngineInternal(SynthesisEngineType type, bool notify)
 {
+    // A disabled option cannot be the selected one, or picking Classic once
+    // would leave no way back. Whoever asked for the vocoder (saved settings,
+    // the controller) still holds it, so report the move even when the request
+    // itself was silent.
+    if (type == SynthesisEngineType::Vocoder && aiSupport == AiResynthesisSupport::Unavailable)
+    {
+        type = SynthesisEngineType::Psola;
+        notify = true;
+    }
+
     synthesisEngine = type;
     refreshSynthesisToggles();
 
@@ -1056,12 +1064,28 @@ void ParameterPanel::refreshSynthesisToggles()
     refreshRenderDeviceRow();
 }
 
-void ParameterPanel::setAiResynthesisAvailable(bool available)
+void ParameterPanel::setAiResynthesisSupport(AiResynthesisSupport support)
 {
-    aiResynthesisAvailable = available;
-    vocoderEngineToggle.setEnabled(available);
-    vocoderEngineToggle.setTooltip(TR(available ? "tooltip.engine_vocoder"
-                                                : "tooltip.engine_vocoder_unavailable"));
+    aiSupport = support;
+    refreshVocoderToggleAvailability();
+
+    if (aiSupport == AiResynthesisSupport::Unavailable &&
+        synthesisEngine == SynthesisEngineType::Vocoder)
+        setSynthesisEngineInternal(SynthesisEngineType::Psola, true);
+}
+
+void ParameterPanel::refreshVocoderToggleAvailability()
+{
+    vocoderEngineToggle.setEnabled(aiSupport != AiResynthesisSupport::Unavailable);
+    // Tooltips still show on a disabled component, so the greyed-out option
+    // explains itself on hover; a CPU-only one adds why renders are slow.
+    if (aiSupport == AiResynthesisSupport::Unavailable)
+        vocoderEngineToggle.setTooltip(TR("tooltip.engine_vocoder_unavailable"));
+    else if (aiSupport == AiResynthesisSupport::CpuOnly)
+        vocoderEngineToggle.setTooltip(TR("tooltip.engine_vocoder") + "\n" +
+                                       TR("tooltip.engine_vocoder_cpu_note"));
+    else
+        vocoderEngineToggle.setTooltip(TR("tooltip.engine_vocoder"));
 }
 
 void ParameterPanel::setRenderStatus(RenderStatus status, SynthesisEngineType engine)
