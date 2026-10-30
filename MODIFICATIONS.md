@@ -7,7 +7,7 @@ modification required by section 5(a) of the GNU Affero General Public License,
 version 3.
 
 - Modified by: Keinoaza
-- Date of modification: 2026-10-19 (first release, Kinu Tune 0.1.0); continued through 2026-10-22 (Kinu Tune 0.1.3)
+- Date of modification: 2026-10-19 (first release, Kinu Tune 0.1.0); continued through 2026-10-30 (Kinu Tune 0.1.4)
 - Based on: SessionLoops/PitchNet commit `8787321` ("Disable file logging in release builds")
 - License of the modified work: GNU Affero General Public License, version 3 (see [LICENSE](LICENSE))
 
@@ -21,7 +21,7 @@ The full history of the changes is in the git log of this repository.
 - Settings folder `~/Library/Kinu Tune/` (macOS), logs `~/Library/Logs/Kinu Tune/`, models
   `~/Library/Application Support/Keinoaza/Kinu Tune/models/`.
 - New icon and logo images.
-- Version number set to 0.1.0, then 0.1.1, 0.1.2 and 0.1.3.
+- Version number set to 0.1.0, then 0.1.1, 0.1.2, 0.1.3 and 0.1.4.
 
 ### Privacy
 - The online update check of PitchNet is disabled.
@@ -116,7 +116,8 @@ The full history of the changes is in the git log of this repository.
   SynthesisEnginePreference (Source/Plugin/RenderControllers.h), initialised
   from the saved preference. Upstream bound the editor to one controller while
   the controllers that render the canvas region and the background
-  modifications kept the default engine, so Classic never rendered in the host.
+  modifications kept the default engine, so when the plug-in was opened
+  through ARA (as a Cubase extension) Classic never rendered.
 - A status line under the engine radios names the engine of the running or
   last render ("Last render: Classic"), since release builds write no log.
 - The Windows release is built without DirectML, where upstream disables the AI
